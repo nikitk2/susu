@@ -7,7 +7,8 @@ st.set_page_config(page_title="India Security & Riot Analyzer", layout="wide")
 st.title("🛡️ Indian Internal Security & Non-Lethal Use Case Tool")
 
 # --- USER INPUTS ---
-api_key = st.sidebar.text_input("Serper API Key", type="password", help="Get one for free at serper.dev")
+# Replace the old api_key line with this:
+api_key = st.secrets.get("SERPER_API_KEY", "")
 st.sidebar.markdown("---")
 
 # Source Selection
@@ -73,3 +74,4 @@ if st.button("Generate Case Studies"):
                         st.info("💡 **Product Opportunity:** High-injury method detected. Use this as a case study for your safer non-lethal alternative.")
         else:
             st.error("No data found for this specific query. Try reducing the number of filters.")
+
