@@ -2,76 +2,78 @@ import streamlit as st
 import requests
 import re
 
-# --- UI SETUP ---
-st.set_page_config(page_title="India Security & Riot Analyzer", layout="wide")
-st.title("🛡️ Indian Internal Security & Non-Lethal Use Case Tool")
+# --- STYLING & UI ---
+st.set_page_config(page_title="India Riot Intelligence 2026", layout="wide")
+st.title("🛰️ India Internal Security Intelligence Engine (2019-2026)")
+st.sidebar.info("Focus: Pattern Recognition for Non-Lethal Deployment")
 
-# --- USER INPUTS ---
-# Replace the old api_key line with this:
-api_key = st.secrets.get("SERPER_API_KEY", "")
-st.sidebar.markdown("---")
+# --- USER CONFIG ---
+api_key = st.sidebar.text_input("Enter Serper API Key", type="password")
+year_range = st.sidebar.slider("Timeline", 2019, 2026, (2019, 2026))
 
-# Source Selection
-source_groups = {
-    "News Agencies": "site:ptinews.com OR site:aninews.in OR site:uniindia.com",
-    "Top News Outlets": "site:indianexpress.com OR site:ndtv.com OR site:news18.com OR site:theprint.in",
-    "Government/Law": "site:nia.gov.in OR site:mha.gov.in OR site:bprd.nic.in OR site:pib.gov.in",
-    "Gazettes/Official": "site:egazette.gov.in OR site:ips.gov.in"
-}
-
-selected_groups = st.sidebar.multiselect("Select Information Nodes", list(source_groups.keys()), default=["News Agencies", "Top News Outlets"])
-date_range = st.sidebar.slider("Timeline", 2019, 2026, (2019, 2026))
-
-# --- CORE ENGINE ---
-def run_strategic_search(query, key, sources):
-    if not sources: return []
+# --- INTELLIGENCE LOGIC ---
+def deep_intelligence_search(query, key):
+    # We use 'site:' filters to create a "Truth vs. Report" view
+    sites = {
+        "Official": "site:pib.gov.in OR site:mha.gov.in OR site:bprd.nic.in",
+        "Field Reporting": "site:indianexpress.com OR site:thehindu.com OR site:theprint.in OR site:ndtv.com",
+        "Global/UN": "site:ohchr.org OR site:hrw.org"
+    }
     
-    # Building the site filter
-    site_query = " OR ".join([source_groups[s] for s in sources])
-    full_query = f"{query} ({site_query}) after:{date_range[0]}-01-01 before:{date_range[1]}-12-31"
+    intel_results = {}
+    for label, site_query in sites.items():
+        full_q = f"{query} ({site_query}) after:{year_range[0]}-01-01 before:{year_range[1]}-12-31"
+        url = "https://google.serper.dev/search"
+        payload = {"q": full_q, "gl": "in"}
+        headers = {'X-API-KEY': key, 'Content-Type': 'application/json'}
+        response = requests.post(url, headers=headers, json=payload).json()
+        intel_results[label] = response.get('organic', [])
+    return intel_results
+
+def extract_intel_patterns(text):
+    # Tech/Forces detection
+    tech = [t for t in ["water cannon", "tear gas", "drone", "AI glasses", "facial recognition", "pellet", "lathi", "Section 144", "CASO", "smart glasses"] if t in text.lower()]
+    # Violence triggers
+    triggers = [tr for tr in ["stone pelting", "clash", "breached", "provocation", "vandalism", "mob"] if tr in text.lower()]
     
-    url = "https://google.serper.dev/search"
-    payload = {"q": full_query, "gl": "in"} 
-    headers = {'X-API-KEY': key, 'Content-Type': 'application/json'}
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        return response.json().get('organic', [])
-    except:
-        return []
+    return {"tech": tech, "triggers": triggers}
 
-def pattern_match(text):
-    # Regex to find police count and restraint terms
-    deployment = re.findall(r'(\d+,?\d*)\s(?:cops|personnel|police|jawans)', text, re.I)
-    restraint = [w for w in ["restrained", "cordon", "tear gas", "water cannon", "pellets", "lathi", "drone", "non-lethal"] if w in text.lower()]
-    return deployment[0] if deployment else "Unknown", restraint
+# --- MAIN DASHBOARD ---
+user_query = st.text_input("Enter Incident or Location (e.g., 'Jammu Kashmir CASO' or 'Delhi Protests')", "Riot control India")
 
-# --- MAIN APP ---
-search_term = st.text_input("Search Case Studies (e.g. 'Protest dispersal Delhi' or 'CASO Jammu Kashmir')", "Police riot control India")
-
-if st.button("Generate Case Studies"):
-    if not api_key:
-        st.warning("Please enter an API key in the sidebar.")
+if st.button("Generate Case Study"):
+    if not api_key: st.error("Key required.")
     else:
-        results = run_strategic_search(search_term, api_key, selected_groups)
-        
-        if results:
-            for item in results:
-                dep_count, tech_used = pattern_match(item.get('snippet', ''))
-                
-                with st.expander(f"📌 {item['title']}"):
-                    st.write(f"**Source:** {item.get('link')}")
-                    st.write(f"**Context:** {item.get('snippet')}")
-                    
-                    # Pattern dashboard
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("Forces on Ground", dep_count)
-                    c2.write("**Methods Detected:**")
-                    c2.write(", ".join(tech_used) if tech_used else "No specific tool mentioned")
-                    
-                    # Automated Analysis for your product
-                    if "tear gas" in tech_used or "lathi" in tech_used:
-                        st.info("💡 **Product Opportunity:** High-injury method detected. Use this as a case study for your safer non-lethal alternative.")
-        else:
-            st.error("No data found for this specific query. Try reducing the number of filters.")
+        with st.spinner("Analyzing cross-referenced sources..."):
+            data = deep_intelligence_search(user_query, api_key)
+            
+            # --- Visualizing the 2nd Layer: Pattern Recognition ---
+            st.subheader("📊 Tactical Analysis")
+            all_snippets = " ".join([r.get('snippet', '') for r in data["Official"] + data["Field Reporting"]])
+            patterns = extract_intel_patterns(all_snippets)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("**⚠️ Common Violence Triggers Found:**")
+                for t in set(patterns["triggers"]): st.warning(f"Trigger: {t}")
+            with col2:
+                st.write("**🛡️ Forces/Tech Currently Deployed:**")
+                for tech in set(patterns["tech"]): st.success(f"Deployed: {tech}")
 
+            st.divider()
+
+            # --- Bilateral View (Both Sides) ---
+            st.subheader("⚖️ Narrative Gap: Official vs. Public Perception")
+            c1, c2 = st.columns(2)
+            
+            with c1:
+                st.markdown("#### [Government View]")
+                for item in data["Official"][:3]:
+                    st.caption(f"**{item['title']}**")
+                    st.write(item.get('snippet', ''))
+            
+            with c2:
+                st.markdown("#### [Field/Civil View]")
+                for item in data["Field Reporting"][:3]:
+                    st.caption(f"**{item['title']}**")
+                    st.write(item.get('snippet', ''))
